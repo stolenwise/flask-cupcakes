@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, abort
 from flask_sqlalchemy import SQLAlchemy
 
 # Initialize the app
@@ -75,6 +75,20 @@ def update_cupcake(id):
             "image": cupcake.image
         }
     })
+
+@app.route('/api/cupcakes/<init:id>', methods=['DELETE'])
+def delete_cupcake(id):
+    """Delete a cupcake by id."""
+    cupcake = Cupcake.query.get(id)
+
+    if cupcake is None:
+        abort(404, description="Cupcake not found")
+
+    
+    db.session.delete(cupcake)
+    db.session.commit()
+    return jsonify({"message": "Deleted"}), 200
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
