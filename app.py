@@ -1,35 +1,71 @@
-from flask import Flask, jsonify, request, abort
-from models import Cupcake, db
+from flask import Flask, jsonify, request
+from flask_sqlalchemy import SQLAlchemy
 
+# Initialize the app
 app = Flask(__name__)
+
+# Database setup
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cupcakes.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'your_secret_key'
+db = SQLAlchemy(app)  # directly initializing SQLAlchemy here
 
-db.init_app(app)
+# Define the Cupcake model
+class Cupcake(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    flavor = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.String(100), nullable=False)
+    rating = db.Column(db.Float, nullable=False)
+    image = db.Column(db.String(100), nullable=False, default="https://tinyurl.com/demo-cupcake")
 
+# Create the database (for the first time)
+with app.app_context():
+    db.create_all()
+
+# Define the routes
 @app.route('/api/cupcakes', methods=['GET'])
 def get_cupcakes():
-    """Get data about all cupcakes."""
-    cupcakes = Cupcake.query.all()  # Fetch all cupcakes
-    results = [
-        {
-            "id": cupcake.id,
-            "flavor": cupcake.flavor,
-            "size": cupcake.size,
-            "rating": cupcake.rating,
-            "image": cupcake.image
-        }
-        for cupcake in cupcakes
-    ]
+    cupcakes = Cupcake.query.all()
+    results = [{"id": cupcake.id, "flavor": cupcake.flavor, "size": cupcake.size, "rating": cupcake.rating, "image": cupcake.image} for cupcake in cupcakes]
     return jsonify({"cupcakes": results})
 
-@app.route('/api/cupcakes/<int:id>', methods=['GET'])
-def get_cupcake(id):
-    """Get data about a single cupcake."""
-    cupcake = Cupcake.query.get(id)  # Get the cupcake by ID
-    if cupcake is None:
-        abort(404)  # Return 404 if not found
+# Create a new cupcake via POST
+@app.route('/api/cupcakes', methods=['POST'])
+def create_cupcake():
+    data = request.get_json()
+    new_cupcake = Cupcake(
+        flavor=data['flavor'],
+        size=data['size'],
+        rating=data['rating'],
+        image=data['image']
+    )
+    db.session.add(new_cupcake)
+    db.session.commit()
+    return jsonify({"cupcake": {"id": new_cupcake.id, "flavor": new_cupcake.flavor, "size": new_cupcake.size, "rating": new_cupcake.rating, "image": new_cupcake.image}})
+
+
+@app.route('/api/cupcakes/<int:id>', methods=['PATCH'])
+def update_cupcake(id):
+    """Update a cupcake with the id passed in the URL and new data passed in the body."""
+    cupcake = Cupcake.query.get(id)
+
+    # If the cupcake does not exist, return a 404 error
+    if cupcake is None: 
+        return jsonify({"message": "Cupcake not found"}), 404
+    
+    #Get the data from the request
+    data = request.get_json()
+
+    if "flavor" in data:
+        cupcake.flavor = data["flavor"]
+    if "size" in data:
+        cupcake.size = data["size"]
+    if "rating" in data:
+        cupcake.rating = data["rating"]
+    if "image" in data:
+        cupcake.image = data["image"]
+
+    db.session.commit()
+
     return jsonify({
         "cupcake": {
             "id": cupcake.id,
@@ -40,36 +76,5 @@ def get_cupcake(id):
         }
     })
 
-@app.route('/api/cupcakes', methods=['POST'])
-def create_cupcake():
-    """Create a new cupcake."""
-    data = request.get_json()  # Get JSON data from request body
-
-    # Get fields from the request data
-    flavor = data.get('flavor')
-    size = data.get('size')
-    rating = data.get('rating')
-    image = data.get('image', 'https://tinyurl.com/demo-cupcake')  # Use default image if none provided
-
-    # Ensure all fields are present
-    if not flavor or not size or not rating:
-        abort(400, description="Missing required fields.")
-
-    # Create a new cupcake instance
-    new_cupcake = Cupcake(flavor=flavor, size=size, rating=rating, image=image)
-
-    db.session.add(new_cupcake)
-    db.session.commit()
-
-    return jsonify({
-        "cupcake": {
-            "id": new_cupcake.id,
-            "flavor": new_cupcake.flavor,
-            "size": new_cupcake.size,
-            "rating": new_cupcake.rating,
-            "image": new_cupcake.image
-        }
-    }), 201  # Return 201 (Created)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run(debug=True, port=5001)
