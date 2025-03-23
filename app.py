@@ -1,25 +1,43 @@
-from flask import Flask, jsonify, request, abort
-from flask_sqlalchemy import SQLAlchemy
+# app.py
+from flask import Flask, jsonify, request, render_template
+from models import db, Cupcake
 
-# Initialize the app
 app = Flask(__name__)
-
-# Database setup
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cupcakes.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)  # directly initializing SQLAlchemy here
 
-# Define the Cupcake model
-class Cupcake(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    flavor = db.Column(db.String(100), nullable=False)
-    size = db.Column(db.String(100), nullable=False)
-    rating = db.Column(db.Float, nullable=False)
-    image = db.Column(db.String(100), nullable=False, default="https://tinyurl.com/demo-cupcake")
+db.init_app(app)
 
-# Create the database (for the first time)
 with app.app_context():
     db.create_all()
+
+# from flask import Flask, jsonify, request, abort
+# from flask_sqlalchemy import SQLAlchemy
+
+# # Initialize the app
+# app = Flask(__name__)
+
+# # Database setup
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cupcakes.db'
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# db = SQLAlchemy(app)  # directly initializing SQLAlchemy here
+
+# # Define the Cupcake model
+# class Cupcake(db.Model):
+#     id = db.Column(db.Integer, primary_key=True)
+#     flavor = db.Column(db.String(100), nullable=False)
+#     size = db.Column(db.String(100), nullable=False)
+#     rating = db.Column(db.Float, nullable=False)
+#     image = db.Column(db.String(100), nullable=False, default="https://tinyurl.com/demo-cupcake")
+
+# # Create the database (for the first time)
+# with app.app_context():
+#     db.create_all()
+
+
+@app.route('/')
+def show_homepage():
+    return render_template('index.html')
 
 # Define the routes
 @app.route('/api/cupcakes', methods=['GET'])
@@ -40,7 +58,16 @@ def create_cupcake():
     )
     db.session.add(new_cupcake)
     db.session.commit()
-    return jsonify({"cupcake": {"id": new_cupcake.id, "flavor": new_cupcake.flavor, "size": new_cupcake.size, "rating": new_cupcake.rating, "image": new_cupcake.image}})
+    
+    print("Added cupcake:", new_cupcake)  # <-- Add this line
+
+    return jsonify({"cupcake": {
+        "id": new_cupcake.id,
+        "flavor": new_cupcake.flavor,
+        "size": new_cupcake.size,
+        "rating": new_cupcake.rating,
+        "image": new_cupcake.image
+    }})
 
 
 @app.route('/api/cupcakes/<int:id>', methods=['PATCH'])
@@ -76,18 +103,17 @@ def update_cupcake(id):
         }
     })
 
-@app.route('/api/cupcakes/<init:id>', methods=['DELETE'])
+@app.route('/api/cupcakes/<id>', methods=['DELETE'])
 def delete_cupcake(id):
-    """Delete a cupcake by id."""
     cupcake = Cupcake.query.get(id)
+    if cupcake:
+        db.session.delete(cupcake)
+        db.session.commit()
+        return jsonify({"message": "Deleted"}), 200
+    else:
+        return jsonify({"error": "Cupcake not found"}), 404
 
-    if cupcake is None:
-        abort(404, description="Cupcake not found")
 
-    
-    db.session.delete(cupcake)
-    db.session.commit()
-    return jsonify({"message": "Deleted"}), 200
 
 
 if __name__ == "__main__":

@@ -42,7 +42,55 @@
 
 <script src="https://unpkg.com/jquery"></script>
 <script src="https://unpkg.com/axios/dist/axios.js"></script>
-<script src="/static/cupcakes.js"></script>
+<script>
+  $(document).ready(function () {
+    // Function to load cupcakes from the API and display them
+    function loadCupcakes() {
+      axios.get('/api/cupcakes')
+        .then(function (response) {
+          let cupcakes = response.data.cupcakes;
+          $('#cupcakes-list').empty();  // Clear the list before appending new cupcakes
+          
+          cupcakes.forEach(function(cupcake) {
+            $('#cupcakes-list').append(`
+              <li>
+                <strong>${cupcake.flavor}</strong> - ${cupcake.size} - Rating: ${cupcake.rating}
+                <br><img src="${cupcake.image}" alt="${cupcake.flavor}" width="100">
+              </li>
+            `);
+          });
+        })
+        .catch(function (error) {
+          console.log("Error fetching cupcakes:", error);
+        });
+    }
 
+    loadCupcakes();  // Load cupcakes when the page loads
+
+    // Handle form submission to add a new cupcake
+    $('#new-cupcake-form').submit(function(event) {
+      event.preventDefault();  // Prevent the form from submitting normally
+      
+      let newCupcake = {
+        flavor: $('#form-flavor').val(),
+        size: $('#form-size').val(),
+        rating: $('#form-rating').val(),
+        image: $('#form-image').val() || 'https://tinyurl.com/demo-cupcake'  // Default image if none is provided
+      };
+
+      axios.post('/api/cupcakes', { cupcake: newCupcake })
+        .then(function(response) {
+          loadCupcakes();  // Reload the cupcakes list after adding a new cupcake
+          $('#new-cupcake-form')[0].reset();  // Reset the form fields
+        })
+        .catch(function(error) {
+          console.log("Error adding cupcake:", error);
+        });
+    });
+  });
+</script>
+
+</body>
+</html>
 </body>
 </html>
